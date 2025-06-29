@@ -1,6 +1,7 @@
 import os
 import socket
 import threading
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,6 +19,14 @@ def handle_client(conn, addr):
                 break
             msg = data.decode(errors="ignore").strip()
             print(f"[{addr}] <<< {msg}")
+
+            # Gelen mesajda *CMDR ve Q0 varsa L0 komutu gönder
+            if "*CMDR" in msg and "Q0" in msg:
+                print("[✓] Cihaz veri gönderdi, şimdi manuel olarak L0 komutu gönderiliyor.")
+                cmd = f"*CMDS,OM,{IMEI},000000000000,L0,0,0,{int(time.time())}#\n"
+                conn.sendall(cmd.encode())
+                print(f"[>>] Gönderildi: {cmd.strip()}")
+
     except Exception as e:
         print(f"[!] Hata: {e}")
     finally:
