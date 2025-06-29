@@ -1,12 +1,17 @@
 import os
 import socket
 import threading
+import datetime
+from flask import Flask
 from dotenv import load_dotenv
 
 load_dotenv()
 
 TCP_PORT = int(os.getenv("TCP_PORT", 39111))
+HTTP_PORT = int(os.getenv("HTTP_PORT", 8020))
 IMEI = os.getenv("IMEI")
+
+app = Flask(__name__)
 
 lock_connections: dict[str, socket.socket] = {}
 conn_lock = threading.Lock()
@@ -52,5 +57,11 @@ def tcp_server():
         conn, addr = srv.accept()
         threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
 
+@app.route("/")
+def alive():
+    return "OK", 200
+
 if __name__ == "__main__":
-    tcp_server()
+    threading.Thread(target=tcp_server, daemon=True).start()
+    print(f"[HTTP] Flask ayakta: 0.0.0.0:{HTTP_PORT}")
+    app.run(host="0.0.0.0", port=HTTP_PORT)
