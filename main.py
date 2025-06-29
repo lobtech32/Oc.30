@@ -15,6 +15,7 @@ async def handle_lock(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     try:
         data = await reader.readline()
         text = data.decode().strip()
+        print(f"Gelen veri: {text}")
         parts = text.split(',')
         if len(parts) >= 4:
             imei = parts[2]
