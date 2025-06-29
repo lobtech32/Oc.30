@@ -5,9 +5,14 @@ import time
 from flask import Flask
 from waitress import serve
 
+# Ortam değişkenlerini al
 TCP_PORT = int(os.getenv("TCP_PORT", 39111))
 IMEI = os.getenv("IMEI", "862205059210023")
 FLASK_PORT = int(os.getenv("PORT", 8080))
+
+print(f"IMEI: {IMEI}")
+print(f"TCP_PORT: {TCP_PORT}")
+print(f"HTTP_PORT: {FLASK_PORT}")
 
 app = Flask(__name__)
 
@@ -26,6 +31,7 @@ def handle_client(conn, addr):
             print(f"[{addr}] <<< {msg}")
 
             if "*CMDR" in msg and "Q0" in msg:
+                print("[✓] Cihazdan Q0 komutu alındı, L0 gönderiliyor...")
                 cmd = f"*CMDS,OM,{IMEI},000000000000,L0,0,0,{int(time.time())}#\n"
                 conn.sendall(cmd.encode())
                 print(f"[>>] Gönderildi: {cmd.strip()}")
@@ -45,5 +51,6 @@ def tcp_server():
         threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
 
 if __name__ == "__main__":
+    print("Sunucu başlıyor...")
     threading.Thread(target=tcp_server, daemon=True).start()
     serve(app, host="0.0.0.0", port=FLASK_PORT)
