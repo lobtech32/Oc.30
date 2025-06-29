@@ -28,7 +28,6 @@ def handle_client(conn, addr):
                 break
             msg = data.decode(errors="ignore").strip()
             print(f"[{addr}] <<< {msg}")
-
             if "*CMDR" in msg and "Q0" in msg:
                 print("[✓] Cihazdan Q0 komutu alındı, L0 gönderiliyor...")
                 cmd = f"*CMDS,OM,{IMEI},000000000000,L0,0,0,{int(time.time())}#\n"
