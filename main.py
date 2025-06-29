@@ -3,14 +3,16 @@ import socket
 import threading
 import time
 from dotenv import load_dotenv
+import traceback
 
 load_dotenv()
 
 TCP_PORT = int(os.getenv("TCP_PORT", 39111))
 IMEI = os.getenv("IMEI")
 
+print(f"IMEI değeri: {IMEI}")  # Başlangıçta kontrol için
+
 def handle_client(conn, addr):
-    imei = None
     print(f"[+] TCP bağlantısı: {addr}")
     try:
         while True:
@@ -20,7 +22,10 @@ def handle_client(conn, addr):
             msg = data.decode(errors="ignore").strip()
             print(f"[{addr}] <<< {msg}")
 
-            # Gelen mesajda *CMDR ve Q0 varsa L0 komutu gönder
+            if IMEI is None or IMEI == "":
+                print("[!] IMEI değişkeni boş, L0 komutu gönderilmiyor.")
+                continue
+
             if "*CMDR" in msg and "Q0" in msg:
                 print("[✓] Cihaz veri gönderdi, şimdi manuel olarak L0 komutu gönderiliyor.")
                 cmd = f"*CMDS,OM,{IMEI},000000000000,L0,0,0,{int(time.time())}#\n"
@@ -29,6 +34,7 @@ def handle_client(conn, addr):
 
     except Exception as e:
         print(f"[!] Hata: {e}")
+        traceback.print_exc()
     finally:
         print(f"[-] Bağlantı kapandı: {addr}")
         conn.close()
@@ -43,4 +49,5 @@ def tcp_server():
         threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
 
 if __name__ == "__main__":
+    print("Sunucu başlıyor...")
     tcp_server()
