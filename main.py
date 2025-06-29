@@ -1,39 +1,61 @@
 import os
-import socket
+import asyncio
 from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv
 
 load_dotenv()
-
 app = FastAPI()
 
 IMEI = os.getenv("IMEI")
-LOCK_HOST = os.getenv("LOCK_HOST")
-LOCK_PORT = int(os.getenv("LOCK_PORT"))
+TCP_PORT = int(os.getenv("TCP_PORT", "39051"))
 
-def send_to_lock(cmd: str) -> str:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(5)
-    sock.connect((LOCK_HOST, LOCK_PORT))
-    sock.sendall(cmd.encode())
-    resp = sock.recv(1024).decode()
-    sock.close()
-    return resp
+connections: dict[str, asyncio.StreamWriter] = {}
+
+async def handle_lock(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+    try:
+        data = await reader.readline()
+        text = data.decode().strip()
+        parts = text.split(',')
+        if len(parts) >= 4:
+            imei = parts[2]
+            connections[imei] = writer
+            print(f"Kilit {imei} bağlandı.")
+        while not reader.at_eof():
+            await reader.readline()
+    except Exception as e:
+        print("Hata:", e)
+    finally:
+        for k, w in list(connections.items()):
+            if w is writer:
+                del connections[k]
+                print(f"Kilit {k} bağlantısı kapandı.")
+        writer.close()
+        await writer.wait_closed()
+
+@app.on_event("startup")
+async def start_tcp_server():
+    server = await asyncio.start_server(handle_lock, '0.0.0.0', TCP_PORT)
+    print(f"TCP dinleniyor: {TCP_PORT}")
+    asyncio.create_task(server.serve_forever())
+
+def get_writer():
+    writer = connections.get(IMEI)
+    if not writer:
+        raise HTTPException(status_code=404, detail="Kilit bağlı değil")
+    return writer
 
 @app.get("/unlock")
-def unlock():
-    cmd = f"*CMDS,OM,{IMEI},000000000000,L0,0,0,0#"
-    try:
-        response = send_to_lock(cmd)
-        return {"status": "success", "lock_response": response}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def unlock():
+    cmd = f"*CMDS,OM,{IMEI},000000000000,L0,0,0,0#\\n"
+    writer = get_writer()
+    writer.write(cmd.encode())
+    await writer.drain()
+    return {"status": "sent", "command": cmd}
 
 @app.get("/lock")
-def lock():
-    cmd = f"*CMDS,OM,{IMEI},000000000000,L1,0,0,0#"
-    try:
-        response = send_to_lock(cmd)
-        return {"status": "success", "lock_response": response}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def lock():
+    cmd = f"*CMDS,OM,{IMEI},000000000000,L1,0,0,0#\\n"
+    writer = get_writer()
+    writer.write(cmd.encode())
+    await writer.drain()
+    return {"status": "sent", "command": cmd}
