@@ -3,6 +3,7 @@ import socket
 import threading
 import time
 from flask import Flask
+from waitress import serve
 
 TCP_PORT = int(os.getenv("TCP_PORT", 39111))
 IMEI = os.getenv("IMEI", "862205059210023")
@@ -45,4 +46,4 @@ def tcp_server():
 
 if __name__ == "__main__":
     threading.Thread(target=tcp_server, daemon=True).start()
-    app.run(host="0.0.0.0", port=FLASK_PORT)
+    serve(app, host="0.0.0.0", port=FLASK_PORT)
