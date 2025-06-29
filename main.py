@@ -5,7 +5,6 @@ import time
 from flask import Flask
 from waitress import serve
 
-# Ortam değişkenlerini al
 TCP_PORT = int(os.getenv("TCP_PORT") or 39111)
 IMEI = os.getenv("IMEI", "862205059210023")
 FLASK_PORT = int(os.getenv("PORT", 8080))
